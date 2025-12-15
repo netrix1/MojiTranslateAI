@@ -1,0 +1,55 @@
+{
+  "name": "mojitranslateai_pipeline_v2_sequential",
+  "steps": [
+    {
+      "id": "regions",
+      "type": "agent",
+      "name": "region_agent"
+    },
+    {
+      "id": "regions_human",
+      "type": "human_checkpoint",
+      "label": "Regions"
+    },
+    {
+      "id": "ocr",
+      "type": "tool",
+      "name": "ocr_router"
+    },
+    {
+      "id": "grouping",
+      "type": "agent",
+      "name": "grouping_agent"
+    },
+    {
+      "id": "ocr_final",
+      "type": "agent",
+      "name": "ocr_editor_agent"
+    },
+    {
+      "id": "ocr_human",
+      "type": "human_checkpoint",
+      "label": "OCR"
+    },
+    {
+      "id": "translation",
+      "type": "agent",
+      "name": "translation_agent"
+    },
+    {
+      "id": "cleaning",
+      "type": "agent",
+      "name": "cleaning_agent"
+    },
+    {
+      "id": "redraw",
+      "type": "agent",
+      "name": "redraw_agent"
+    },
+    {
+      "id": "typesetting",
+      "type": "agent",
+      "name": "typesetting_agent"
+    }
+  ]
+}

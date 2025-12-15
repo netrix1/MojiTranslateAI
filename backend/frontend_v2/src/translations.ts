@@ -1,0 +1,80 @@
+
+export const translations = {
+    en: {
+        appTitle: "MojiTranslate",
+        editor: "Editor",
+        jobId: "Job ID",
+        page: "Page",
+        saveChanges: "Save Changes",
+        newRegion: "New Region",
+        regions: "Regions",
+        loading: "Loading data...",
+        enterJobInfo: "Enter Job ID and Page Number to load",
+        deleteConfirm: "Delete region?",
+        saved: "Saved successfully!",
+        errorSaving: "Error saving data",
+        errorLoading: "Error loading data. Check console.",
+        editRegion: "Edit Region",
+        regionIdName: "Region ID / Name",
+        type: "Type",
+        cancel: "Cancel",
+        save: "Save",
+        delete: "Delete",
+        editProperties: "Edit Properties",
+        typeHelp: "Region Types Guide",
+        types: {
+            text: "Standard text bubble",
+            speech: "Character speech",
+            sfx: "Sound effects",
+            thought: "Thought bubble",
+            narrative: "Narrator box",
+            unknown: "Unclassified region"
+        },
+        ocrEditor: "OCR Editor",
+        regionEditor: "Region Editor",
+        noOCR: "No OCR data found for this page",
+        ocrText: "Text",
+        readingOrder: "Order",
+        textBlock: "Text Block"
+    },
+    pt: {
+        appTitle: "MojiTranslate",
+        editor: "Editor",
+        jobId: "ID do Job",
+        page: "Página",
+        saveChanges: "Salvar Alterações",
+        newRegion: "Nova Região",
+        regions: "Regiões",
+        loading: "Carregando dados...",
+        enterJobInfo: "Insira o ID do Job e Número da Página para carregar",
+        deleteConfirm: "Deletar região?",
+        saved: "Salvo com sucesso!",
+        errorSaving: "Erro ao salvar dados",
+        errorLoading: "Erro ao carregar dados. Verifique o console.",
+        editRegion: "Editar Região",
+        regionIdName: "ID / Nome da Região",
+        type: "Tipo",
+        cancel: "Cancelar",
+        save: "Salvar",
+        delete: "Deletar",
+        editProperties: "Editar Propriedades",
+        typeHelp: "Guia de Tipos de Região",
+        types: {
+            text: "Balão de texto padrão",
+            speech: "Fala de personagem",
+            sfx: "Efeitos sonoros",
+            thought: "Balão de pensamento",
+            narrative: "Caixa de narração",
+            unknown: "Região não classificada"
+        },
+        ocrEditor: "Editor de OCR",
+        regionEditor: "Editor de Regiões",
+        noOCR: "Nenhum dado de OCR encontrado para esta página",
+        ocrText: "Texto",
+        readingOrder: "Ordem",
+        textBlock: "Bloco de Texto"
+    }
+};
+
+export type Language = 'en' | 'pt';
+export type TranslationKey = keyof typeof translations.en;

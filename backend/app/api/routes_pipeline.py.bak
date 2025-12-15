@@ -1,0 +1,59 @@
+from fastapi import APIRouter, HTTPException
+from app.schemas import PipelineRunResult, CheckpointInfo
+from app.core.pipeline_engine import run_page_pipeline, approve_checkpoint
+from app.core.config import settings
+from app.core.storage import read_json
+from pathlib import Path
+
+router = APIRouter()
+
+def job_dir(job_id: str) -> Path:
+    return settings.data_dir() / "jobs" / job_id
+
+@router.post("/pipeline/run/{job_id}/page/{page_number}", response_model=PipelineRunResult)
+def run_pipeline(job_id: str, page_number: int):
+    jd = job_dir(job_id)
+    if not jd.exists():
+        raise HTTPException(status_code=404, detail="job_id not found")
+    return run_page_pipeline(job_id, page_number)
+
+@router.post("/pipeline/{job_id}/checkpoints/{checkpoint_id}/approve", response_model=CheckpointInfo)
+def approve(job_id: str, checkpoint_id: str):
+    jd = job_dir(job_id)
+    if not jd.exists():
+        raise HTTPException(status_code=404, detail="job_id not found")
+    try:
+        cp = approve_checkpoint(job_id, checkpoint_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="checkpoint_id not found")
+    return {
+        "checkpoint_id": cp["checkpoint_id"],
+        "job_id": cp["job_id"],
+        "page_number": cp["page_number"],
+        "label": cp["label"],
+        "status": cp["status"],
+        "created_on": cp["created_on"],
+        "approved_on": cp.get("approved_on"),
+        "context_keys": cp.get("context_keys", []),
+    }
+
+@router.get("/pipeline/{job_id}/ocr/raw")
+def get_ocr_raw(job_id: str):
+    p = job_dir(job_id) / "ocr" / "ocr_raw.json"
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="ocr_raw not found")
+    return read_json(p)
+
+@router.get("/pipeline/{job_id}/ocr/grouped")
+def get_ocr_grouped(job_id: str):
+    p = job_dir(job_id) / "ocr" / "ocr_grouped.json"
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="ocr_grouped not found")
+    return read_json(p)
+
+@router.get("/pipeline/{job_id}/ocr/final")
+def get_ocr_final(job_id: str):
+    p = job_dir(job_id) / "ocr" / "ocr_final.json"
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="ocr_final not found")
+    return read_json(p)

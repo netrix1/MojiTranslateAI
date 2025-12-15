@@ -1,0 +1,169 @@
+from __future__ import annotations
+from pathlib import Path
+import uuid
+from typing import Any, Dict
+from app.core.config import settings
+from app.core.storage import ensure_dir, write_json, read_json, utc_now_iso
+from app.core.tools.ocr_router import run_ocr
+from app.core.agents.grouping_agent import grouping_agent
+from app.core.agents.ocr_editor_agent import ocr_editor_agent
+from app.core.checkpoints_store import save_checkpoint, load_checkpoint, update_checkpoint
+
+def _job_dir(job_id: str) -> Path:
+    return settings.data_dir() / "jobs" / job_id
+
+def _page_image_path(job_id: str, page_number: int) -> Path:
+    pages_dir = _job_dir(job_id) / "pages"
+    for ext in [".jpg",".jpeg",".png",".webp"]:
+        p = pages_dir / f"{page_number:03d}{ext}"
+        if p.exists():
+            return p
+    return pages_dir / f"{page_number:03d}.jpg"
+
+def _ocr_paths(job_id: str) -> Dict[str, Path]:
+    base = _job_dir(job_id) / "ocr"
+    return {
+        "raw": base / "ocr_raw.json",
+        "grouped": base / "ocr_grouped.json",
+        "final": base / "ocr_final.json",
+        "overrides_dir": base / "overrides",
+    }
+
+def _state_path(job_id: str, page_number: int) -> Path:
+    return _job_dir(job_id) / "pipeline" / f"state_page_{page_number:03d}.json"
+
+def _checkpoint_dir(job_id: str) -> Path:
+    return _job_dir(job_id) / "checkpoints"
+
+def load_pipeline_def() -> dict:
+    p = Path(settings.pipeline_path)
+    return read_json(p)
+
+def load_state(job_id: str, page_number: int) -> dict:
+    sp = _state_path(job_id, page_number)
+    if sp.exists():
+        return read_json(sp)
+    return {"job_id": job_id, "page_number": page_number, "current_step": 0, "steps": {}, "checkpoint_id": None}
+
+def save_state(job_id: str, page_number: int, state: dict) -> None:
+    write_json(_state_path(job_id, page_number), state)
+
+def create_checkpoint(job_id: str, page_number: int, label: str, context: dict) -> str:
+    cid = str(uuid.uuid4())
+    cp = {
+        "checkpoint_id": cid,
+        "job_id": job_id,
+        "page_number": page_number,
+        "label": label,
+        "status": "awaiting_human",
+        "created_on": utc_now_iso(),
+        "approved_on": None,
+        "context_keys": list(context.keys()),
+        "context": context,
+    }
+    ensure_dir(_checkpoint_dir(job_id))
+    write_json(_checkpoint_dir(job_id) / f"{cid}.json", cp)
+    return cid
+
+def approve_checkpoint(job_id: str, checkpoint_id: str) -> dict:
+    p = _checkpoint_dir(job_id) / f"{checkpoint_id}.json"
+    if not p.exists():
+        raise FileNotFoundError("checkpoint_id not found")
+    cp = read_json(p)
+    cp["status"] = "approved"
+    cp["approved_on"] = utc_now_iso()
+    write_json(p, cp)
+    return cp
+
+def get_checkpoint(job_id: str, checkpoint_id: str) -> dict:
+    p = _checkpoint_dir(job_id) / f"{checkpoint_id}.json"
+    if not p.exists():
+        raise FileNotFoundError("checkpoint_id not found")
+    return read_json(p)
+
+def run_page_pipeline(job_id: str, page_number: int) -> dict:
+    pipe = load_pipeline_def()
+    steps = pipe.get("steps", [])
+    state = load_state(job_id, page_number)
+
+    ctx: Dict[str, Any] = {
+        "job_id": job_id,
+        "page_number": page_number,
+        "image_filename": _page_image_path(job_id, page_number).name,
+    }
+    ocrp = _ocr_paths(job_id)
+
+    if ocrp["raw"].exists():
+        ctx["ocr_raw"] = read_json(ocrp["raw"])
+    if ocrp["grouped"].exists():
+        ctx["ocr_grouped"] = read_json(ocrp["grouped"])
+    if ocrp["final"].exists():
+        ctx["ocr_final"] = read_json(ocrp["final"])
+
+    i = int(state.get("current_step", 0))
+    while i < len(steps):
+        step = steps[i]
+        step_id = step.get("id", f"step{i}")
+        stype = step.get("type")
+        state["current_step"] = i
+
+        if stype == "tool" and step.get("name","").startswith("ocr"):
+            img_path = _page_image_path(job_id, page_number)
+            doc = run_ocr(page_number=page_number, image_path=img_path)
+            write_json(ocrp["raw"], doc)
+            ctx["ocr_raw"] = doc
+            state["steps"][step_id] = {"status": "done", "completed_on": utc_now_iso()}
+            i += 1
+            continue
+
+        if stype == "agent" and step.get("name") == "grouping_agent":
+            grouped = grouping_agent(ctx["ocr_raw"])
+            write_json(ocrp["grouped"], grouped)
+            ctx["ocr_grouped"] = grouped
+            state["steps"][step_id] = {"status": "done", "completed_on": utc_now_iso()}
+            i += 1
+            continue
+
+        if stype == "human_checkpoint":
+            label = step.get("label", "Validação humana")
+            cid = state.get("checkpoint_id")
+            if not cid:
+                cid = create_checkpoint(job_id, page_number, label, {
+                    "job_id": job_id,
+                    "page_number": page_number,
+                    "image_filename": ctx["image_filename"],
+                    "ocr_raw": ctx.get("ocr_raw"),
+                    "ocr_grouped": ctx.get("ocr_grouped"),
+                })
+                state["checkpoint_id"] = cid
+                save_state(job_id, page_number, state)
+                return {"status": "awaiting_human", "checkpoint_id": cid, "context": {k: ctx.get(k) for k in ["job_id","page_number","image_filename","ocr_raw","ocr_grouped"]}}
+
+            cp = get_checkpoint(job_id, cid)
+            if cp.get("status") != "approved":
+                save_state(job_id, page_number, state)
+                return {"status": "awaiting_human", "checkpoint_id": cid, "context": {k: ctx.get(k) for k in ["job_id","page_number","image_filename","ocr_raw","ocr_grouped"]}}
+
+            state["steps"][step_id] = {"status": "done", "completed_on": utc_now_iso(), "checkpoint_id": cid}
+            i += 1
+            state["current_step"] = i
+            save_state(job_id, page_number, state)
+            continue
+
+        if stype == "agent" and step.get("name") == "ocr_editor_agent":
+            final_doc, overrides = ocr_editor_agent(ctx["ocr_grouped"])
+            ensure_dir(ocrp["overrides_dir"])
+            ofn = ocrp["overrides_dir"] / f"auto_{utc_now_iso().replace(':','').replace('-','')}.json"
+            write_json(ofn, {"ops": overrides, "generated_on": utc_now_iso(), "engine": "ocr_editor_agent"})
+            write_json(ocrp["final"], final_doc)
+            ctx["ocr_final"] = final_doc
+            state["steps"][step_id] = {"status": "done", "completed_on": utc_now_iso(), "overrides_file": ofn.name}
+            i += 1
+            continue
+
+        state["steps"][step_id] = {"status": "skipped", "completed_on": utc_now_iso(), "reason": "unknown step"}
+        i += 1
+
+    state["current_step"] = len(steps)
+    save_state(job_id, page_number, state)
+    return {"status": "completed", "context": {k: ctx.get(k) for k in ["job_id","page_number","image_filename","ocr_raw","ocr_grouped","ocr_final"]}}

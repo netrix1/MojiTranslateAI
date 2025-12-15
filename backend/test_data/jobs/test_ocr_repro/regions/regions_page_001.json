@@ -1,0 +1,1 @@
+{"job_id": "test_ocr_repro", "pages": [{"page_number": 1, "regions": [{"bbox": [10, 10, 100, 100], "type_hint": "speech"}]}]}

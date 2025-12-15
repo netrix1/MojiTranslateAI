@@ -1,0 +1,34 @@
+{
+    "name": "default_page_pipeline",
+    "steps": [
+        {
+            "id": "step1",
+            "type": "agent",
+            "name": "region_agent",
+            "label": "Detecção de Regiões"
+        },
+        {
+            "id": "step2",
+            "type": "tool",
+            "name": "ocr_tool",
+            "label": "Extração de Texto (OCR)"
+        },
+        {
+            "id": "step3",
+            "type": "agent",
+            "name": "grouping_agent",
+            "label": "Agrupamento de Texto"
+        },
+        {
+            "id": "step4",
+            "type": "human_checkpoint",
+            "label": "Aprovação de Texto"
+        },
+        {
+            "id": "step5",
+            "type": "agent",
+            "name": "ocr_editor_agent",
+            "label": "Persistir Edições Manuais"
+        }
+    ]
+}

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>MojiTranslateAI - Visualizador de Regiões</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #111827;
+      color: #e5e7eb;
+    }
+    header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #1f2933;
+      background: #020617;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+    header small {
+      color: #9ca3af;
+    }
+    main {
+      padding: 16px 24px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+      height: calc(100vh - 64px);
+      box-sizing: border-box;
+    }
+    .panel {
+      background: #020617;
+      border-radius: 8px;
+      border: 1px solid #1f2933;
+      padding: 16px;
+      box-sizing: border-box;
+      overflow: auto;
+    }
+    .panel h2 {
+      margin-top: 0;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    .field {
+      margin-bottom: 12px;
+    }
+    .field label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #9ca3af;
+    }
+    .field input[type="text"],
+    .field input[type="number"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 13px;
+    }
+    .field input[type="file"] {
+      width: 100%;
+      font-size: 13px;
+    }
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    button.secondary {
+      background: #374151;
+    }
+    #log {
+      font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      background: #020617;
+      border-radius: 4px;
+      border: 1px solid #1f2933;
+      padding: 8px;
+      max-height: 220px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #previewWrapper {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #previewWrapper header {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #previewImage {
+      max-width: 100%;
+      max-height: calc(100% - 32px);
+      object-fit: contain;
+      background: #000;
+      border-radius: 4px;
+      border: 1px solid #1f2933;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #111827;
+      border: 1px solid #374151;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MojiTranslateAI - Visualizador de Regiões <small>(debug)</small></h1>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>1. Configurar e rodar</h2>
+
+      <div class="field">
+        <label for="imageFile">Imagem da página (001.jpg, etc.)</label>
+        <input type="file" id="imageFile" accept="image/*" />
+      </div>
+
+      <div class="field">
+        <label for="pageNumber">Número da página</label>
+        <input type="number" id="pageNumber" value="1" min="1" />
+      </div>
+
+      <div class="field">
+        <label for="jobId">Job ID (opcional)</label>
+        <input type="text" id="jobId" placeholder="Se vazio, um novo job será criado" />
+      </div>
+
+      <div class="field">
+        <button id="btnRun">
+          Criar job / enviar imagem / rodar pipeline
+        </button>
+      </div>
+
+      <div class="field">
+        <button id="btnOnlyPreview" class="secondary">
+          Atualizar apenas preview (usando Job ID + página)
+        </button>
+      </div>
+
+      <div class="field">
+        <label>Log</label>
+        <div id="log"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div id="previewWrapper">
+        <header>
+          <div>
+            <strong>Preview de regiões</strong>
+          </div>
+          <div class="badge">
+            <span id="badgeJob">Job: —</span>&nbsp;&middot;&nbsp;
+            <span id="badgePage">Página: —</span>
+          </div>
+        </header>
+        <img id="previewImage" alt="Preview de regiões" />
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const btnRun = document.getElementById('btnRun');
+    const btnOnlyPreview = document.getElementById('btnOnlyPreview');
+    const jobIdInput = document.getElementById('jobId');
+    const pageNumberInput = document.getElementById('pageNumber');
+    const imgInput = document.getElementById('imageFile');
+    const previewImage = document.getElementById('previewImage');
+    const badgeJob = document.getElementById('badgeJob');
+    const badgePage = document.getElementById('badgePage');
+
+    function log(msg) {
+      const ts = new Date().toISOString().split('T')[1].replace('Z', '');
+      logEl.textContent += `[${ts}] ${msg}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setBusy(busy) {
+      btnRun.disabled = busy;
+      btnOnlyPreview.disabled = busy;
+    }
+
+    function updateBadges(jobId, pageNumber) {
+      badgeJob.textContent = `Job: ${jobId || '—'}`;
+      badgePage.textContent = `Página: ${pageNumber || '—'}`;
+    }
+
+    async function createJobIfNeeded() {
+      const currentJob = jobIdInput.value.trim();
+      if (currentJob) {
+        log(`Usando Job ID informado: ${currentJob}`);
+        return currentJob;
+      }
+      log('Criando novo job...');
+      const resp = await fetch('/jobs', { method: 'POST' });
+      if (!resp.ok) {
+        throw new Error(`Erro ao criar job: ${resp.status}`);
+      }
+      const data = await resp.json();
+      const jobId = data.job_id || data.jobId || data.id;
+      if (!jobId) {
+        throw new Error('Resposta de /jobs não contém job_id');
+      }
+      jobIdInput.value = jobId;
+      log(`Job criado: ${jobId}`);
+      return jobId;
+    }
+
+    async function uploadImage(jobId, pageNumber) {
+      const file = imgInput.files[0];
+      if (!file) {
+        throw new Error('Selecione uma imagem antes de enviar.');
+      }
+      log(`Enviando imagem para job ${jobId}, página ${pageNumber}...`);
+      const formData = new FormData();
+      formData.append('file', file);
+      const resp = await fetch(`/jobs/${jobId}/pages/${pageNumber}/image`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`Erro ao fazer upload da imagem: ${resp.status} - ${txt}`);
+      }
+      log('Upload concluído.');
+    }
+
+    async function runPipeline(jobId, pageNumber) {
+      log(`Rodando pipeline para job ${jobId}, página ${pageNumber}...`);
+      const resp = await fetch(`/pipeline/run/${jobId}/page/${pageNumber}`, {
+        method: 'POST',
+        headers: { 'accept': 'application/json' }
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`Erro ao rodar pipeline: ${resp.status} - ${txt}`);
+      }
+      const data = await resp.json();
+      log('Resposta da pipeline:');
+      log(JSON.stringify(data, null, 2));
+      return data;
+    }
+
+    async function updatePreview(jobId, pageNumber) {
+      if (!jobId) {
+        throw new Error('Informe um Job ID para visualizar o preview.');
+      }
+      const url = `/pipeline/${jobId}/regions/${pageNumber}/preview?cb=` + Date.now();
+      log(`Atualizando preview de regiões: ${url}`);
+      previewImage.src = url;
+      updateBadges(jobId, pageNumber);
+    }
+
+    btnRun.addEventListener('click', async () => {
+      setBusy(true);
+      try {
+        logEl.textContent = '';
+        const pageNumber = parseInt(pageNumberInput.value || '1', 10);
+
+        const jobId = await createJobIfNeeded();
+        await uploadImage(jobId, pageNumber);
+        await runPipeline(jobId, pageNumber); // primeira execução já gera regions + checkpoint
+        await updatePreview(jobId, pageNumber);
+      } catch (err) {
+        console.error(err);
+        log(`ERRO: ${err.message || err}`);
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    btnOnlyPreview.addEventListener('click', async () => {
+      setBusy(true);
+      try {
+        const jobId = jobIdInput.value.trim();
+        const pageNumber = parseInt(pageNumberInput.value || '1', 10);
+        await updatePreview(jobId, pageNumber);
+      } catch (err) {
+        console.error(err);
+        log(`ERRO: ${err.message || err}`);
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    // Estado inicial
+    updateBadges(null, null);
+  </script>
+</body>
+</html>

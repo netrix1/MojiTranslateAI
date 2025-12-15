@@ -1,0 +1,13 @@
+# OCR (Japão / mangá)
+#
+# MangaOCR (kha-white/manga-ocr-base) - OCR focado em mangá japonês
+# Observação: o modelo é baixado automaticamente no primeiro uso.
+#
+# Em ambientes GPU (ROCm/CUDA), o torch deve estar instalado previamente.
+
+manga-ocr>=0.1.0
+Pillow>=10.0.0
+opencv-python-headless>=4.9.0
+
+# Observação:
+# - Estamos usando OpenCV no detector heurístico (detect_regions v1) para extrair bboxes.

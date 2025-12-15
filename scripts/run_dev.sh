@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/../backend"
+source .venv/bin/activate
+# load env if present
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Manga Dialogue';
+  src: url('/fonts/Ames-Regular.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Shout';
+  src: url('/fonts/comic.ttf') format('truetype');
+}
+
+body {
+  background-color: #0f172a;
+  /* slate-900 */
+  color: #f1f5f9;
+  /* slate-100 */
+  font-family: 'Inter', system-ui, sans-serif;
+}
