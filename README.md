@@ -99,6 +99,14 @@ O projeto apresenta um **Editor Web Interativo** moderno que permite aos usuári
     *   *Final:* Use o **Editor Interativo** para estilizar o texto (Fontes, Cores, Rotação) e posicioná-lo perfeitamente.
 4.  **Exportar:** Salve o resultado final.
 
+
+## 💲 Se quiseram me ajudar
+
+### Manda o PIX
+*   **Email:** urso.net@gmail.com
+
+---
+
 ### 🎥 Tutorial em Vídeo
 Confira o tutorial detalhado de uso: [Assistir no YouTube](https://www.youtube.com/watch?v=qHnFcLuT_fA)
 
