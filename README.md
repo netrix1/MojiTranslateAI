@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.png" alt="MojiTranslateAI Logo" width="200" />
+  <img src="backend/assets/logo.png" alt="MojiTranslateAI Logo" width="200" />
 
   # MojiTranslateAI 🎌🤖
 </div>
