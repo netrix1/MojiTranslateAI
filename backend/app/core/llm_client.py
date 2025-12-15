@@ -54,3 +54,47 @@ def translate_text(text: str, context: str = "") -> str:
     except Exception as e:
         print(f"LLM Error: {e}")
         return f"[ERR] {text}"
+
+def call_vision_llm(image_path: str, prompt: str) -> str:
+    """
+    Calls GPT-4 Vision with a local image file.
+    """
+    import base64
+
+    client = get_llm_client()
+    if not client:
+        return "[MOCK] OCR Result"
+
+    # Encode image
+    try:
+        with open(image_path, "rb") as image_file:
+            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+    except Exception as e:
+        print(f"Error reading image {image_path}: {e}")
+        return ""
+
+    model = "gpt-4o" # or gpt-4-turbo, gpt-4o is currently best for vision
+    
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            },
+                        },
+                    ],
+                }
+            ],
+            max_tokens=300,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"LLM Vision Error: {e}")
+        return ""
